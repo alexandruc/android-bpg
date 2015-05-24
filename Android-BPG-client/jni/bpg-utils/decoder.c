@@ -5,12 +5,7 @@
 #include <inttypes.h>
 #include <string.h>
 
-/* define it to include PNG output */
-//#define USE_PNG
-
-#ifdef USE_PNG
-#include <png.h>
-#endif
+#include "decode.h"
 
 #include "libbpg.h"
 
@@ -87,103 +82,95 @@ static void ppm_save_to_buffer(BPGDecoderContext *img, uint8_t** outBuf, unsigne
     free(rgb_line);
 }
 
-#ifdef USE_PNG
-static void png_write_data (png_structp png_ptr, png_bytep data,
-                            png_size_t length)
+#pragma pack(1)  // ensure structure is packed
+typedef struct
 {
-    FILE *f;
-    int ret;
+    uint16_t  bfType;
+    uint32_t bfSize;
+    uint16_t  bfReserved1;
+    uint16_t  bfReserved2;
+    uint32_t bfOffBits;
+} BITMAPFILEHEADER;
 
-    f = png_get_io_ptr(png_ptr);
-    ret = fwrite(data, 1, length, f);
-    if (ret != length)
-        png_error(png_ptr, "PNG Write Error");
-}
+typedef struct {
+  uint32_t biSize;
+  int32_t  biWidth;
+  int32_t  biHeight;
+  uint16_t biPlanes;
+  uint16_t biBitCount;
+  uint32_t biCompression;
+  uint32_t biSizeImage;
+  int32_t  biXPelsPerMeter;
+  int32_t  biYPelsPerMeter;
+  uint32_t biClrUsed;
+  uint32_t biClrImportant;
+} BITMAPINFOHEADER;
+#pragma pack(0)  // restore normal structure packing rules
 
-static void png_save(BPGDecoderContext *img, const char *filename, int bit_depth)
+static void bmp_save_to_buffer(BPGDecoderContext *img, uint8_t** outBuf, unsigned int *outBufLen)
 {
     BPGImageInfo img_info_s, *img_info = &img_info_s;
-    FILE *f;
-    png_structp png_ptr;
-    png_infop info_ptr;
-    png_bytep row_pointer;
-    int y, color_type, bpp;
-    BPGDecoderOutputFormat out_fmt;
+    int w, h, y, size_of_line, bufferIncrement, x;
+    uint8_t *rgb_line/*, *bmp_line*/;
+    uint8_t swap;
+    BITMAPFILEHEADER header;
+    BITMAPINFOHEADER info;
 
-    if (bit_depth != 8 && bit_depth != 16) {
-        fprintf(stderr, "Only bit_depth = 8 or 16 are supported for PNG output\n");
-        exit(1);
-    }
+    memset(&header, 0, sizeof(BITMAPFILEHEADER));
+    memset(&info, 0, sizeof(BITMAPINFOHEADER));
 
     bpg_decoder_get_info(img, img_info);
 
-    f = fopen(filename, "wb");
-    if (!f) {
-        fprintf(stderr, "%s: I/O error\n", filename);
-        exit(1);
+    w = img_info->width;
+    h = img_info->height;
+    size_of_line = 3*w;
+    rgb_line = malloc(size_of_line);
+    if(NULL == rgb_line){
+        printf("FAILED to allocate \n");
+        return;
     }
 
-    png_ptr = png_create_write_struct_2(PNG_LIBPNG_VER_STRING,
-                                        NULL,
-                                        NULL,  /* error */
-                                        NULL, /* warning */
-                                        NULL,
-                                        NULL,
-                                        NULL);
-    info_ptr = png_create_info_struct(png_ptr);
-    png_set_write_fn(png_ptr, (png_voidp)f, &png_write_data, NULL);
+    //prepare the bmp header
+    header.bfType = 19778;
+    header.bfSize = sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER);
+    header.bfOffBits = sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER);
+    //prepare the bmp dib header
+    info.biSize = sizeof(BITMAPINFOHEADER);
+    info.biWidth = w;
+    info.biHeight = h;
+    info.biPlanes = 1;
+    info.biBitCount = 24;
+    info.biSizeImage = w*h*(24/8);
 
-    if (setjmp(png_jmpbuf(png_ptr)) != 0) {
-        fprintf(stderr, "PNG write error\n");
-        exit(1);
+    *outBufLen = size_of_line * h + sizeof(header) + sizeof(info);
+    *outBuf = malloc( *outBufLen );
+    if(NULL == *outBuf){
+        printf("FAILED to allocate \n");
+        free(rgb_line);
+        return;
     }
+    memset(*outBuf, 0, *outBufLen);
+    //copy the header and info first
+    memcpy(*outBuf, &header, sizeof(header));
+    memcpy(*outBuf+sizeof(header), &info, sizeof(info));
 
-    if (img_info->has_alpha)
-        color_type = PNG_COLOR_TYPE_RGB_ALPHA;
-    else
-        color_type = PNG_COLOR_TYPE_RGB;
+    bpg_decoder_start(img, BPG_OUTPUT_FORMAT_RGB24);
+    bufferIncrement = size_of_line;
+    for (y = 0; y < h; y++) {
+        bpg_decoder_get_line(img, rgb_line);
 
-    png_set_IHDR(png_ptr, info_ptr, img_info->width, img_info->height,
-                 bit_depth, color_type, PNG_INTERLACE_NONE,
-                 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+        // RGB needs to be BGR
+        for (x=0; x < size_of_line; x+=3){
+            swap = rgb_line[x+2];
+            rgb_line[x+2] = rgb_line[x]; // swap r and b
+            rgb_line[x] = swap; // swap b and r
+        }
+        memcpy( (*outBuf)+*outBufLen-bufferIncrement, rgb_line, size_of_line);
 
-    png_write_info(png_ptr, info_ptr);
-
-#if __BYTE_ORDER__ != __ORDER_BIG_ENDIAN__
-    if (bit_depth == 16) {
-        png_set_swap(png_ptr);
+        bufferIncrement += size_of_line;
     }
-#endif
-
-    if (bit_depth == 16) {
-        if (img_info->has_alpha)
-            out_fmt = BPG_OUTPUT_FORMAT_RGBA64;
-        else
-            out_fmt = BPG_OUTPUT_FORMAT_RGB48;
-    } else {
-        if (img_info->has_alpha)
-            out_fmt = BPG_OUTPUT_FORMAT_RGBA32;
-        else
-            out_fmt = BPG_OUTPUT_FORMAT_RGB24;
-    }
-
-    bpg_decoder_start(img, out_fmt);
-
-    bpp = (3 + img_info->has_alpha) * (bit_depth / 8);
-    row_pointer = (png_bytep)png_malloc(png_ptr, img_info->width * bpp);
-    for (y = 0; y < img_info->height; y++) {
-        bpg_decoder_get_line(img, row_pointer);
-        png_write_row(png_ptr, row_pointer);
-    }
-    png_free(png_ptr, row_pointer);
-
-    png_write_end(png_ptr, NULL);
-
-    png_destroy_write_struct(&png_ptr, &info_ptr);
-
-    fclose(f);
+    free(rgb_line);
 }
-#endif /* USE_PNG */
 
 static void bpg_show_info(const char *filename, int show_extensions)
 {
@@ -272,10 +259,8 @@ static void bpg_show_info(const char *filename, int show_extensions)
     }
 }
 
-void decode_buffer(uint8_t* bufIn, unsigned int bufInLen, uint8_t** bufOut, unsigned int* bufOutLen){
+void decode_buffer(uint8_t* bufIn, unsigned int bufInLen, uint8_t** bufOut, unsigned int* bufOutLen, enum DecodeTo format){
     BPGDecoderContext *img;
-    uint8_t *buf;
-    int buf_len, bit_depth;
 
     if(NULL == bufIn || bufInLen==0 || NULL == bufOut){
         printf("Invalid input data \n");
@@ -289,17 +274,22 @@ void decode_buffer(uint8_t* bufIn, unsigned int bufInLen, uint8_t** bufOut, unsi
         return;
     }
 
-#ifdef USE_PNG
-    p = strrchr(outfilename, '.');
-    if (p)
-        p++;
-
-    if (p && strcasecmp(p, "ppm") != 0) {
-        png_save(img, outfilename, bit_depth);
-    } else
-#endif
-    {
+    switch(format){
+    case BMP:{
+        bmp_save_to_buffer(img, bufOut, bufOutLen);
+        break;
+    }
+    case PPM:{
         ppm_save_to_buffer(img, bufOut, bufOutLen);
+        break;
+    }
+    case PNG:{
+        //TBD
+        break;
+    }
+    default:{
+        break;
+    }
     }
 
     bpg_decoder_close(img);
@@ -310,11 +300,11 @@ void decode_file(char* bpgFilename, char* outFilename){
     BPGDecoderContext *img;
     uint8_t *buf;
     int buf_len, bit_depth;
-    const char *outfilename, *filename, *p;
+    const char *p;
 
-    f = fopen(filename, "rb");
+    f = fopen(bpgFilename, "rb");
     if (!f) {
-        fprintf(stderr, "Could not open %s\n", filename);
+        fprintf(stderr, "Could not open %s\n", bpgFilename);
         exit(1);
     }
 
@@ -337,18 +327,8 @@ void decode_file(char* bpgFilename, char* outFilename){
         exit(1);
     }
     free(buf);
-
-#ifdef USE_PNG
-    p = strrchr(outfilename, '.');
-    if (p)
-        p++;
-
-    if (p && strcasecmp(p, "ppm") != 0) {
-        png_save(img, outfilename, bit_depth);
-    } else
-#endif
     {
-        ppm_save_to_file(img, outfilename);
+        ppm_save_to_file(img, outFilename);
     }
 
     bpg_decoder_close(img);
@@ -385,7 +365,7 @@ int main(int argc, char **argv)
 
     fclose(f);
 
-    decode_buffer(buf, buf_len, &decBuf, &decBuf_len);
+    decode_buffer(buf, buf_len, &decBuf, &decBuf_len, BMP);
 
     f = fopen(argv[2], "wb");
     if (!f) {
