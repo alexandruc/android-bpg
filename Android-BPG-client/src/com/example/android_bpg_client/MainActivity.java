@@ -1,16 +1,69 @@
 package com.example.android_bpg_client;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
 import android.app.Activity;
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
+import android.widget.ImageView;
 
 public class MainActivity extends Activity {
-
+	
+	private ImageView m_image;
+	private Button m_button;
+	
+	// Load library
+    static {
+        System.loadLibrary("bpg_decoder");
+    };
+    
+    public static byte[] toByteArray(InputStream input) throws IOException
+    {
+        byte[] buffer = new byte[1024];
+        int bytesRead;
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        while ((bytesRead = input.read(buffer)) != -1)
+        {
+            output.write(buffer, 0, bytesRead);
+        }
+        return output.toByteArray();
+    }
+    
+    public Bitmap getDecodedBitmap(){
+    	Bitmap bm = null;
+		InputStream is = getResources().openRawResource(com.example.android_bpg_client.R.raw.picture_clock);
+		try{
+			byte[] byteArray = toByteArray(is);
+			byte[] decBuffer = null;
+			int decBufferSize = 0;
+			int outputBufSize = DecoderWrapper.fetchDecodedBufferSize(byteArray, byteArray.length);
+			Log.i("MainActivity", "Decoded image size: " + String.valueOf(outputBufSize));
+			DecoderWrapper.decodeBuffer(byteArray, byteArray.length, decBuffer, decBufferSize);
+			
+			bm = BitmapFactory.decodeByteArray(decBuffer, 0, decBufferSize);
+		}
+		catch(IOException ex){
+			Log.i("MainActivity", "Failed to convert image to byte array");
+		}
+		return bm;
+    }
+    
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+		
+		addListenerOnButton();
 	}
 
 	@Override
@@ -30,5 +83,24 @@ public class MainActivity extends Activity {
 			return true;
 		}
 		return super.onOptionsItemSelected(item);
+	}
+	
+	public void addListenerOnButton() {
+		 
+		m_image = (ImageView) findViewById(R.id.imageView1);
+ 
+		m_button = (Button) findViewById(R.id.btnChangeImage);
+		m_button.setOnClickListener(new OnClickListener() {
+			 
+			@Override
+			public void onClick(View arg0) {
+				
+				Bitmap bm = getDecodedBitmap();
+				if(bm != null){
+					m_image.setImageBitmap(bm);
+				}
+			}
+ 
+		});
 	}
 }

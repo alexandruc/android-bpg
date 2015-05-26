@@ -4,5 +4,7 @@
     <string name="app_name">Android-BPG-client</string>
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
+    <string name="change_image">Load Image</string>
+    <string name="img_description">Decoded bgp image</string>
 
 </resources>
