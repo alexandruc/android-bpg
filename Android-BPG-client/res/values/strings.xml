@@ -6,5 +6,11 @@
     <string name="action_settings">Settings</string>
     <string name="change_image">Load Image</string>
     <string name="img_description">Decoded bgp image</string>
+    <string name="picture_prompt">Choose a picture</string>
+    <string-array name="bpg_arrays">
+        <item>clock</item>
+        <item>bear</item>
+        <item>squirrel</item>
+    </string-array>
 
 </resources>

@@ -20,12 +20,14 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 public class MainActivity extends Activity {
 	
 	private ImageView m_image;
 	private Button m_button;
+	private Spinner m_spinner;
 	
 	// Load library
     static {
@@ -44,9 +46,9 @@ public class MainActivity extends Activity {
         return output.toByteArray();
     }
     
-    public Bitmap getDecodedBitmap(){
+    public Bitmap getDecodedBitmap(int resourceId){
     	Bitmap bm = null;
-		InputStream is = getResources().openRawResource(com.example.android_bpg_client.R.raw.picture_clock);
+		InputStream is = getResources().openRawResource(resourceId);
 		try{
 			byte[] byteArray = toByteArray(is);
 			byte[] decBuffer = null;
@@ -101,14 +103,38 @@ public class MainActivity extends Activity {
 			public void onClick(View arg0) {
 				
 				TextView txtView = (TextView) findViewById(R.id.text_id);
+				m_spinner = (Spinner) findViewById(R.id.spinner1);
+				
+				int bpgId = 0;
+				switch(m_spinner.getSelectedItemPosition()){
+				case 0:{
+					bpgId = com.example.android_bpg_client.R.raw.picture_clock;
+					break;
+				}
+				case 1:{
+					bpgId = com.example.android_bpg_client.R.raw.black_bear;
+					break;
+				}
+				case 2:{
+					bpgId = com.example.android_bpg_client.R.raw.squirrel;
+					break;
+				}
+				default:{
+					txtView.setText("Please select from the drop down");
+					return;
+				}
+				}
 				long startTime = System.currentTimeMillis();
-				Bitmap bm = getDecodedBitmap();
+				Bitmap bm = getDecodedBitmap(bpgId);
 				if(bm != null){
 					m_image.setImageBitmap(bm);
 					long stopTime = System.currentTimeMillis();
 					String timeString = String.valueOf(stopTime-startTime);
 					txtView.setText("Image size: " + String.valueOf(bm.getHeight()) + "x" + String.valueOf(bm.getWidth()) + 
 							"\nTime to load: " + timeString + "ms" );					
+				}
+				else{
+					txtView.setText("Failed to decode image");
 				}
 			}
  
