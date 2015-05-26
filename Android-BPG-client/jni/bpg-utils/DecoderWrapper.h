@@ -17,11 +17,11 @@ JNIEXPORT jint JNICALL Java_com_example_android_1bpg_1client_DecoderWrapper_fetc
 
 /*
  * Class:     com_example_android_bpg_client_DecoderWrapper
- * Method:    decodeBuffer
- * Signature: ([BI[BI)I
+ * Method:    decodeBufferV2
+ * Signature: ([BI)[B
  */
-JNIEXPORT jint JNICALL Java_com_example_android_1bpg_1client_DecoderWrapper_decodeBuffer
-  (JNIEnv *, jclass, jbyteArray, jint, jbyteArray, jint);
+JNIEXPORT jbyteArray JNICALL Java_com_example_android_1bpg_1client_DecoderWrapper_decodeBufferV2
+  (JNIEnv *, jclass, jbyteArray, jint);
 
 #ifdef __cplusplus
 }

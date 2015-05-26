@@ -3,19 +3,24 @@ package com.example.android_bpg_client;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import android.app.Activity;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.text.format.DateFormat;
 import android.util.Log;
+import android.util.TimingLogger;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 public class MainActivity extends Activity {
 	
@@ -46,11 +51,11 @@ public class MainActivity extends Activity {
 			byte[] byteArray = toByteArray(is);
 			byte[] decBuffer = null;
 			int decBufferSize = 0;
-			int outputBufSize = DecoderWrapper.fetchDecodedBufferSize(byteArray, byteArray.length);
-			Log.i("MainActivity", "Decoded image size: " + String.valueOf(outputBufSize));
-			DecoderWrapper.decodeBuffer(byteArray, byteArray.length, decBuffer, decBufferSize);
-			
-			bm = BitmapFactory.decodeByteArray(decBuffer, 0, decBufferSize);
+			decBuffer = DecoderWrapper.decodeBuffer(byteArray, byteArray.length);
+			decBufferSize = decBuffer.length;
+			if(decBuffer != null){
+				bm = BitmapFactory.decodeByteArray(decBuffer, 0, decBufferSize);
+			}
 		}
 		catch(IOException ex){
 			Log.i("MainActivity", "Failed to convert image to byte array");
@@ -95,9 +100,15 @@ public class MainActivity extends Activity {
 			@Override
 			public void onClick(View arg0) {
 				
+				TextView txtView = (TextView) findViewById(R.id.text_id);
+				long startTime = System.currentTimeMillis();
 				Bitmap bm = getDecodedBitmap();
 				if(bm != null){
 					m_image.setImageBitmap(bm);
+					long stopTime = System.currentTimeMillis();
+					String timeString = String.valueOf(stopTime-startTime);
+					txtView.setText("Image size: " + String.valueOf(bm.getHeight()) + "x" + String.valueOf(bm.getWidth()) + 
+							"\nTime to load: " + timeString + "ms" );					
 				}
 			}
  

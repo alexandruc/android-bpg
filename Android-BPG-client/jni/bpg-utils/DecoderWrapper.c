@@ -2,6 +2,7 @@
 
 #include "decode.h"
 #include <stdlib.h>
+#include <android/log.h>
 
 extern int bpg_get_buffer_size_from_bpg(uint8_t *bpgBuffer, int bpgBufferSize);
 extern void decode_buffer(uint8_t* bufIn, unsigned int bufInLen, uint8_t** bufOut, unsigned int* bufOutLen, enum DecodeTo format);
@@ -16,21 +17,23 @@ JNIEXPORT jint JNICALL Java_com_example_android_1bpg_1client_DecoderWrapper_fetc
 		return -1;
 	}
 	else{
-		int capacity = bpg_get_buffer_size_from_bpg(cEncArray, encBufferSize);
+		capacity = bpg_get_buffer_size_from_bpg(cEncArray, encBufferSize);
 
 		(*env)->ReleaseByteArrayElements(env, encBuffer, cEncArray, JNI_ABORT);
 	}
 	return capacity;
 }
 
-JNIEXPORT jint JNICALL Java_com_example_android_1bpg_1client_DecoderWrapper_decodeBuffer
-(JNIEnv *env, jclass class, jbyteArray encBuffer, jint encBufferSize, jbyteArray decBuffer, jint decBufferSize)
+JNIEXPORT jbyteArray JNICALL Java_com_example_android_1bpg_1client_DecoderWrapper_decodeBuffer
+	(JNIEnv *env, jclass class, jbyteArray encBuffer, jint encBufferSize)
 {
 	jboolean isCopy;
+	jbyteArray decBuffer;
 	//get c-style array
 	jbyte* cEncArray = (*env)->GetByteArrayElements(env, encBuffer, &isCopy);
 	if(NULL == cEncArray){
-		return -1;
+		__android_log_print(ANDROID_LOG_INFO, "decodeBufferV2", "FAILED to allocate cEncArray");
+		return NULL;
 	}
 	else{
 		uint8_t* outBuf;
@@ -38,23 +41,23 @@ JNIEXPORT jint JNICALL Java_com_example_android_1bpg_1client_DecoderWrapper_deco
 		decode_buffer(cEncArray, encBufferSize, &outBuf, &outBufSize, BMP);
 
 		//convert back to java-style array
-		decBufferSize = outBufSize;
-		decBuffer = (*env)->NewByteArray(env, decBufferSize);
+		decBuffer = (*env)->NewByteArray(env, outBufSize);
 		if(NULL == decBuffer){
 			(*env)->ReleaseByteArrayElements(env, encBuffer, cEncArray, JNI_ABORT);
-			return -1;
+			__android_log_print(ANDROID_LOG_INFO, "decodeBuffer", "FAILED to allocate decBuffer : outBufferSize=%d", outBufSize);
+			return NULL;
 		}
 		else{
-			(*env)->SetByteArrayRegion(env, decBuffer, 0, decBufferSize, cEncArray);
+			(*env)->SetByteArrayRegion(env, decBuffer, 0, outBufSize, outBuf);
 		}
 		(*env)->ReleaseByteArrayElements(env, encBuffer, cEncArray, JNI_ABORT);
 	}
-	return 0;
+	return decBuffer;
 }
 
 static JNINativeMethod method_table[] = {
 		{"fetchDecodedBufferSize", "([BI)I", (void *) Java_com_example_android_1bpg_1client_DecoderWrapper_fetchDecodedBufferSize},
-		{"decodeBuffer", "([BI[BI)I", (void *) Java_com_example_android_1bpg_1client_DecoderWrapper_decodeBuffer},
+		{"decodeBuffer", "([BI)[B", (void *) Java_com_example_android_1bpg_1client_DecoderWrapper_decodeBuffer},
 };
 
 static int method_table_size = sizeof(method_table) / sizeof(method_table[0]);
