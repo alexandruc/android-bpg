@@ -119,6 +119,10 @@ public class MainActivity extends Activity {
 					bpgId = com.example.android_bpg_client.R.raw.squirrel;
 					break;
 				}
+				case 3:{
+					bpgId = com.example.android_bpg_client.R.raw.cats;
+					break;
+				}
 				default:{
 					txtView.setText("Please select from the drop down");
 					return;
