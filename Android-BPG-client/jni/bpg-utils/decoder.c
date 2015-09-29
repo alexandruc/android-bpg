@@ -123,7 +123,14 @@ static void bmp_save_to_buffer(BPGDecoderContext *img, uint8_t** outBuf, unsigne
 
     w = img_info->width;
     h = img_info->height;
-    size_of_line = w%2 ? (3*w+1) : 3*w;//account for images with odd resolution
+    // find the number of padding bytes
+    int padding = 0;
+    int scanlinebytes = w * 3;
+    while ( ( scanlinebytes + padding ) % sizeof(uint32_t) != 0 ){
+    	padding++;
+    }
+    // get the padded scanline width
+    size_of_line = scanlinebytes + padding;
     rgb_line = malloc(size_of_line);
     if(NULL == rgb_line){
         printf("FAILED to allocate \n");
