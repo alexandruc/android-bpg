@@ -116,7 +116,7 @@ typedef struct {
 
 #pragma pack(pop)
 
-static int bmp_save_to_buf(BPGDecoderContext *img, uint8_t** bmp_buf, unsigned int *buf_len) {
+static int bmp_save_to_buffer(BPGDecoderContext *img, uint8_t** bmp_buf, unsigned int *buf_len) {
     BPGImageInfo img_info_s, *img_info = &img_info_s;
     int w, h, y, size_of_line, x;
     uint8_t *rgb_line/*, *bmp_line*/;
