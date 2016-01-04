@@ -82,100 +82,117 @@ static void ppm_save_to_buffer(BPGDecoderContext *img, uint8_t** outBuf, unsigne
     free(rgb_line);
 }
 
-#pragma pack(1)  // ensure structure is packed
-typedef struct
-{
-    uint16_t  bfType;
-    uint32_t bfSize;
-    uint16_t  bfReserved1;
-    uint16_t  bfReserved2;
-    uint32_t bfOffBits;
-} BITMAPFILEHEADER;
+#define BITS_PER_PIXEL 24
+#define X_PIXESLPERMETER 0x130B
+#define Y_PIXESLPERMETER 0x130B
+
+#pragma pack(push,1)
 
 typedef struct {
-  uint32_t biSize;
-  int32_t  biWidth;
-  int32_t  biHeight;
-  uint16_t biPlanes;
-  uint16_t biBitCount;
-  uint32_t biCompression;
-  uint32_t biSizeImage;
-  int32_t  biXPelsPerMeter;
-  int32_t  biYPelsPerMeter;
-  uint32_t biClrUsed;
-  uint32_t biClrImportant;
-} BITMAPINFOHEADER;
-#pragma pack(0)  // restore normal structure packing rules
+    uint8_t signature[2];
+    uint32_t file_size;
+    uint32_t reserved;
+    uint32_t fileoffset_to_pixelarray;
+} BmpFileHeader;
 
-static void bmp_save_to_buffer(BPGDecoderContext *img, uint8_t** outBuf, unsigned int *outBufLen)
-{
+typedef struct {
+    uint32_t dib_header_size;
+    uint32_t width;
+    uint32_t height;
+    uint16_t planes;
+    uint16_t bits_per_pixel;
+    uint32_t compression;
+    uint32_t image_size;
+    uint32_t y_pixelpermeter;
+    uint32_t x_pixelpermeter;
+    uint32_t num_colors_pallette;
+    uint32_t most_imp_color;
+} BmpInfoHeader;
+
+typedef struct {
+    BmpFileHeader fileheader;
+    BmpInfoHeader bitmapinfoheader;
+} Bitmap;
+
+#pragma pack(pop)
+
+static int bmp_save_to_buf(BPGDecoderContext *img, uint8_t** bmp_buf, unsigned int *buf_len) {
     BPGImageInfo img_info_s, *img_info = &img_info_s;
-    int w, h, y, size_of_line, bufferIncrement, x;
+    int w, h, y, size_of_line, x;
     uint8_t *rgb_line/*, *bmp_line*/;
     uint8_t swap;
-    BITMAPFILEHEADER header;
-    BITMAPINFOHEADER info;
 
-    memset(&header, 0, sizeof(BITMAPFILEHEADER));
-    memset(&info, 0, sizeof(BITMAPINFOHEADER));
+    int bmp_header_len = sizeof(Bitmap);
+    Bitmap *bmp = (Bitmap*) calloc(1, bmp_header_len);
+    bmp->fileheader.signature[0] = 'B';
+    bmp->fileheader.signature[1] = 'M';
+    bmp->fileheader.fileoffset_to_pixelarray = bmp_header_len;
 
-    bpg_decoder_get_info(img, img_info);
+    if (bpg_decoder_get_info(img, img_info) < 0) {
+        return -1;
+    }
 
     w = img_info->width;
     h = img_info->height;
-    // find the number of padding bytes
+
+    bmp->bitmapinfoheader.dib_header_size = sizeof(BmpInfoHeader);
+    bmp->bitmapinfoheader.width = w;
+    bmp->bitmapinfoheader.height = h;
+    bmp->bitmapinfoheader.planes = 1;
+    bmp->bitmapinfoheader.bits_per_pixel = BITS_PER_PIXEL;
+    bmp->bitmapinfoheader.compression = 0;
+    bmp->bitmapinfoheader.image_size = w * h * (24 / 8);
+    bmp->bitmapinfoheader.x_pixelpermeter = X_PIXESLPERMETER;
+    bmp->bitmapinfoheader.y_pixelpermeter = Y_PIXESLPERMETER;
+    bmp->bitmapinfoheader.num_colors_pallette = 0;
+
     int padding = 0;
     int scanlinebytes = w * 3;
-    while ( ( scanlinebytes + padding ) % sizeof(uint32_t) != 0 ){
-    	padding++;
+    while ((scanlinebytes + padding) % sizeof(uint32_t) != 0) {
+        padding++;
     }
+
     // get the padded scanline width
     size_of_line = scanlinebytes + padding;
     rgb_line = malloc(size_of_line);
-    if(NULL == rgb_line){
-        printf("FAILED to allocate \n");
-        return;
+    if (rgb_line == NULL) {
+        printf("Could not allocate the RGB line buffer! \n");
+        return -1;
     }
 
-    //prepare the bmp header
-    header.bfType = 19778;
-    header.bfSize = sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER);
-    header.bfOffBits = sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER);
-    //prepare the bmp dib header
-    info.biSize = sizeof(BITMAPINFOHEADER);
-    info.biWidth = w;
-    info.biHeight = h;
-    info.biPlanes = 1;
-    info.biBitCount = 24;
-    info.biSizeImage = w*h*(24/8);
+    bmp->fileheader.file_size = size_of_line * h + bmp_header_len;
 
-    *outBufLen = size_of_line * h + sizeof(header) + sizeof(info);
-    *outBuf = malloc( *outBufLen );
-    if(NULL == *outBuf){
-        printf("FAILED to allocate \n");
+    *buf_len = bmp->fileheader.file_size;
+    *bmp_buf = malloc(*buf_len);
+
+    if (*bmp_buf == NULL) {
+        printf("Could not allocate the RGB line buffer! \n");
         free(rgb_line);
-        return;
+        return -1;
     }
-    memset(*outBuf, 0, *outBufLen);
-    //copy the header and info first
-    memcpy(*outBuf, &header, sizeof(header));
-    memcpy(*outBuf+sizeof(header), &info, sizeof(info));
+
+    memset(*bmp_buf, 0, *buf_len);
+    memcpy(*bmp_buf, bmp, bmp_header_len);
 
     bpg_decoder_start(img, BPG_OUTPUT_FORMAT_RGB24);
-    bufferIncrement = size_of_line;
+    int idx = 0, buf_idx;
     for (y = 0; y < h; y++) {
         bpg_decoder_get_line(img, rgb_line);
 
         // RGB needs to be BGR
-        for (x=0; x < size_of_line; x+=3){
-            swap = rgb_line[x+2];
-            rgb_line[x+2] = rgb_line[x]; // swap r and b
+        for (x = 0; x < size_of_line; x += 3) {
+            swap = rgb_line[x + 2];
+            rgb_line[x + 2] = rgb_line[x]; // swap r and b
             rgb_line[x] = swap; // swap b and r
         }
-        memcpy( (*outBuf)+*outBufLen-bufferIncrement, rgb_line, size_of_line);
 
-        bufferIncrement += size_of_line;
+        idx += size_of_line;
+        buf_idx = (*buf_len - idx);
+        memcpy((*bmp_buf) + buf_idx, rgb_line, size_of_line);
     }
+    //	FILE *f = fopen("out.bmp", "ab+");
+    //	fwrite (*bmp_buf, 1, *buf_len, f);
+    //	fclose(f);
     free(rgb_line);
 }
 
