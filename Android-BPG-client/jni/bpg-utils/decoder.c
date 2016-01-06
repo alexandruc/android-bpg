@@ -89,7 +89,7 @@ static void ppm_save_to_buffer(BPGDecoderContext *img, uint8_t** outBuf, unsigne
 #pragma pack(push,1)
 
 typedef struct {
-    uint8_t signature[2];
+    uint8_t *signature;
     uint32_t file_size;
     uint32_t reserved;
     uint32_t fileoffset_to_pixelarray;
@@ -123,10 +123,10 @@ static int bmp_save_to_buffer(BPGDecoderContext *img, uint8_t** bmp_buf, unsigne
     uint8_t swap;
 
     int bmp_header_len = sizeof(Bitmap);
-    Bitmap *bmp = (Bitmap*) calloc(1, bmp_header_len);
-    bmp->fileheader.signature[0] = 'B';
-    bmp->fileheader.signature[1] = 'M';
-    bmp->fileheader.fileoffset_to_pixelarray = bmp_header_len;
+    Bitmap bmp;
+    memset(&bmp, 0, bmp_header_len);
+    bmp.fileheader.signature = "BM";
+    bmp.fileheader.fileoffset_to_pixelarray = bmp_header_len;
 
     if (bpg_decoder_get_info(img, img_info) < 0) {
         return -1;
@@ -135,16 +135,16 @@ static int bmp_save_to_buffer(BPGDecoderContext *img, uint8_t** bmp_buf, unsigne
     w = img_info->width;
     h = img_info->height;
 
-    bmp->bitmapinfoheader.dib_header_size = sizeof(BmpInfoHeader);
-    bmp->bitmapinfoheader.width = w;
-    bmp->bitmapinfoheader.height = h;
-    bmp->bitmapinfoheader.planes = 1;
-    bmp->bitmapinfoheader.bits_per_pixel = BITS_PER_PIXEL;
-    bmp->bitmapinfoheader.compression = 0;
-    bmp->bitmapinfoheader.image_size = w * h * (24 / 8);
-    bmp->bitmapinfoheader.x_pixelpermeter = X_PIXESLPERMETER;
-    bmp->bitmapinfoheader.y_pixelpermeter = Y_PIXESLPERMETER;
-    bmp->bitmapinfoheader.num_colors_pallette = 0;
+    bmp.bitmapinfoheader.dib_header_size = sizeof(BmpInfoHeader);
+    bmp.bitmapinfoheader.width = w;
+    bmp.bitmapinfoheader.height = h;
+    bmp.bitmapinfoheader.planes = 1;
+    bmp.bitmapinfoheader.bits_per_pixel = BITS_PER_PIXEL;
+    bmp.bitmapinfoheader.compression = 0;
+    bmp.bitmapinfoheader.image_size = w * h * (24 / 8);
+    bmp.bitmapinfoheader.x_pixelpermeter = X_PIXESLPERMETER;
+    bmp.bitmapinfoheader.y_pixelpermeter = Y_PIXESLPERMETER;
+    bmp.bitmapinfoheader.num_colors_pallette = 0;
 
     int padding = 0;
     int scanlinebytes = w * 3;
@@ -160,9 +160,9 @@ static int bmp_save_to_buffer(BPGDecoderContext *img, uint8_t** bmp_buf, unsigne
         return -1;
     }
 
-    bmp->fileheader.file_size = size_of_line * h + bmp_header_len;
+    bmp.fileheader.file_size = size_of_line * h + bmp_header_len;
 
-    *buf_len = bmp->fileheader.file_size;
+    *buf_len = bmp.fileheader.file_size;
     *bmp_buf = malloc(*buf_len);
 
     if (*bmp_buf == NULL) {
@@ -194,6 +194,7 @@ static int bmp_save_to_buffer(BPGDecoderContext *img, uint8_t** bmp_buf, unsigne
     //	fwrite (*bmp_buf, 1, *buf_len, f);
     //	fclose(f);
     free(rgb_line);
+    return 0;
 }
 
 int bpg_get_buffer_size_from_bpg(uint8_t *bpgBuffer, int bpgBufferSize)
@@ -206,7 +207,7 @@ int bpg_get_buffer_size_from_bpg(uint8_t *bpgBuffer, int bpgBufferSize)
         return 0;//not a bpg image
     }
 
-    bmp_buffer_size = 3 * p.width * p.height + sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+    bmp_buffer_size = 3 * p.width * p.height + sizeof(Bitmap);
     return bmp_buffer_size;
 }
 
