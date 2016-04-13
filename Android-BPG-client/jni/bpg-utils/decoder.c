@@ -139,7 +139,7 @@ static void bmp_save_to_buffer(BPGDecoderContext *img, uint8_t** outBuf, unsigne
 
     //prepare the bmp header
     header.bfType = 19778;
-    header.bfSize = sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER);
+    header.bfSize = sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER)+w*h*(24/8);
     header.bfOffBits = sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER);
     //prepare the bmp dib header
     info.biSize = sizeof(BITMAPINFOHEADER);
