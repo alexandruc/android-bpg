@@ -1,0 +1,71 @@
+ECLIPSE ANDROID PROJECT IMPORT SUMMARY
+======================================
+
+Ignored Files:
+--------------
+The following files were *not* copied into the new Gradle project; you
+should evaluate whether these are still needed in your project and if
+so manually move them:
+
+* Debug/
+* Debug/jni/
+* Debug/jni/bpg-utils/
+* Debug/jni/bpg-utils/subdir.mk
+* Debug/jni/libbpg/
+* Debug/jni/libbpg/libavcodec/
+* Debug/jni/libbpg/libavcodec/subdir.mk
+* Debug/jni/libbpg/libavutil/
+* Debug/jni/libbpg/libavutil/subdir.mk
+* Debug/jni/libbpg/subdir.mk
+* Debug/makefile
+* Debug/obj/
+* Debug/obj/local/
+* Debug/obj/local/armeabi/
+* Debug/obj/local/armeabi/objs/
+* Debug/obj/local/armeabi/objs/bpg/
+* Debug/obj/local/armeabi/objs/bpg/home/
+* Debug/obj/local/armeabi/objs/bpg/home/alex/
+* Debug/obj/local/armeabi/objs/bpg/home/alex/workspace/
+* Debug/obj/local/armeabi/objs/bpg/home/alex/workspace/Android-BPG-client/
+* Debug/obj/local/armeabi/objs/bpg/home/alex/workspace/Android-BPG-client/jni/
+* Debug/obj/local/armeabi/objs/bpg/home/alex/workspace/Android-BPG-client/jni/libbpg/
+* Debug/obj/local/armeabi/objs/bpg/home/alex/workspace/Android-BPG-client/jni/libbpg/libavcodec/
+* Debug/obj/local/armeabi/objs/bpg/home/alex/workspace/Android-BPG-client/jni/libbpg/libavcodec/subdir.mk
+* Debug/obj/local/armeabi/objs/bpg/home/alex/workspace/Android-BPG-client/jni/libbpg/libavutil/
+* Debug/obj/local/armeabi/objs/bpg/home/alex/workspace/Android-BPG-client/jni/libbpg/libavutil/subdir.mk
+* Debug/obj/local/armeabi/objs/bpg/libavcodec/
+* Debug/obj/local/armeabi/objs/bpg/libavcodec/subdir.mk
+* Debug/obj/local/armeabi/objs/bpg/libavutil/
+* Debug/obj/local/armeabi/objs/bpg/libavutil/subdir.mk
+* Debug/obj/local/armeabi/objs/bpg/subdir.mk
+* Debug/obj/local/armeabi/objs/bpg_decoder/
+* Debug/obj/local/armeabi/objs/bpg_decoder/subdir.mk
+* Debug/objects.mk
+* Debug/sources.mk
+* ic_launcher-web.png
+* proguard-project.txt
+
+Moved Files:
+------------
+Android Gradle projects use a different directory structure than ADT
+Eclipse projects. Here's how the projects were restructured:
+
+* AndroidManifest.xml => app/src/main/AndroidManifest.xml
+* jni/ => app/src/main/jni/
+* res/ => app/src/main/res/
+* src/ => app/src/main/java/
+
+Next Steps:
+-----------
+You can now build the project. The Gradle project needs network
+connectivity to download dependencies.
+
+Bugs:
+-----
+If for some reason your project does not build, and you determine that
+it is due to a bug or limitation of the Eclipse to Gradle importer,
+please file a bug at http://b.android.com with category
+Component-Tools.
+
+(This import summary is for your information only, and can be deleted
+after import once you are satisfied with the results.)
